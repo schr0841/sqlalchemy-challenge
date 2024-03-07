@@ -15,7 +15,7 @@ import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func, inspect, text
-
+from collections import defaultdict 
 
 
 #################################################
@@ -64,7 +64,8 @@ def welcome():
 
 
 
-
+#Convert the query results from your precipitation analysis (i.e. retrieve only the last 12 months of data) to a dictionary using date as the key and prcp as the value.
+#Return the JSON representation of your dictionary.
 @app.route("/api/v1.0/precipitation")
 def precip():
     query_date = dt.date(2017, 8, 23) - dt.timedelta(days=365)
@@ -75,16 +76,23 @@ def precip():
     date_info_df=pd.DataFrame(q)
     date_info_df
 
+
     # Sort the dataframe by date
     date_sorted=date_info_df.sort_values("date")
     date_sorted
+    #print(date_sorted.index)
 
-    date_dict=date_sorted.to_dict()
+    #date_index=date_sorted.reset_index(drop=True)
+    
+    newdf=pd.DataFrame(date_sorted.groupby('date').sum())
+    #print(newdf)
+
+    date_dict=newdf.to_dict()
 
     #print(date_dict)
 
 #
-    return(jsonify(date_dict))
+    return(jsonify(date_dict['prcp']))
 
 @app.route("/api/v1.0/stations")
 def stations():
@@ -99,11 +107,9 @@ def stations():
 #Only returns the jsonified data for the last year of data (3 points)
 @app.route("/api/v1.0/tobs")
 def tobs():
-    #q2=session.query(Station.station, Station.name, Station.latitude, Station.longitude, Station.elevation).all()
     query_date = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     q3=session.query(Measurement.station, Measurement.prcp, Measurement.tobs).filter(Measurement.date >= query_date).\
     filter(Measurement.station == 'USC00519281').all()
-    #print(q2)
     q3=pd.DataFrame(q3).to_dict()
     return(jsonify(q3))
 
@@ -144,8 +150,6 @@ def dyn2(start,end):
     TAVG=np.mean(test)
     
     return(jsonify([TMIN, TAVG, TMAX]))
-
-
 
 
 if __name__ == "__main__":
